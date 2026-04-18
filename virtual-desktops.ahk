@@ -10,6 +10,7 @@
 ; Alt+L               Next desktop (index order, no wrap)
 ; Alt+N               New desktop
 ; Alt+Shift+W         Remove current desktop (won't remove last)
+; Alt+J               Task View (Win+Tab)
 ; ============================================================
 
 dllPath := A_ScriptDir . "\VirtualDesktopAccessor.dll"
@@ -80,3 +81,14 @@ RemoveCurrent() {
 !l::NextDesktop()
 !n::NewDesktop()
 !+w::RemoveCurrent()
+!j::TaskView()
+
+TaskView() {
+    SendInput("{LAlt up}{RAlt up}")
+    Sleep 30
+    SendInput("{LWin down}")
+    Sleep 30
+    SendInput("{Tab}")
+    Sleep 30
+    SendInput("{LWin up}")
+}
