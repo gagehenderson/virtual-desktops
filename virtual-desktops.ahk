@@ -31,7 +31,7 @@ GetCount() {
     return DllCall("VirtualDesktopAccessor\GetDesktopCount", "Int")
 }
 
-GoTo(n) {
+SwitchDesktop(n) {
     idx := n - 1
     count := GetCount()
     if (idx < 0 || idx >= count)
@@ -39,14 +39,14 @@ GoTo(n) {
     DllCall("VirtualDesktopAccessor\GoToDesktopNumber", "Int", idx)
 }
 
-GoNext() {
+NextDesktop() {
     cur := GetCurrent()
     count := GetCount()
     if (cur + 1 < count)
         DllCall("VirtualDesktopAccessor\GoToDesktopNumber", "Int", cur + 1)
 }
 
-GoPrev() {
+PrevDesktop() {
     cur := GetCurrent()
     if (cur > 0)
         DllCall("VirtualDesktopAccessor\GoToDesktopNumber", "Int", cur - 1)
@@ -65,18 +65,18 @@ RemoveCurrent() {
     DllCall("VirtualDesktopAccessor\RemoveDesktop", "Int", cur, "Int", fallback)
 }
 
-!1::GoTo(1)
-!2::GoTo(2)
-!3::GoTo(3)
-!4::GoTo(4)
-!5::GoTo(5)
-!6::GoTo(6)
-!7::GoTo(7)
-!8::GoTo(8)
-!9::GoTo(9)
-!0::GoTo(10)
+!1::SwitchDesktop(1)
+!2::SwitchDesktop(2)
+!3::SwitchDesktop(3)
+!4::SwitchDesktop(4)
+!5::SwitchDesktop(5)
+!6::SwitchDesktop(6)
+!7::SwitchDesktop(7)
+!8::SwitchDesktop(8)
+!9::SwitchDesktop(9)
+!0::SwitchDesktop(10)
 
-!h::GoPrev()
-!l::GoNext()
+!h::PrevDesktop()
+!l::NextDesktop()
 !n::NewDesktop()
 !+w::RemoveCurrent()
