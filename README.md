@@ -1,26 +1,45 @@
 # virtual-desktops
 
-i3-style direct-jump hotkeys for Windows virtual desktops.
+"Loose i3" hotkeys for Windows virtual desktops: i3-style keybinds for
+workspace navigation, window movement, and window focus, without forcing
+you into a tiling layout. Windows stay floating and resizable, you just get
+the keyboard ergonomics.
 
-Windows has no native "jump to desktop N" shortcut, only cycle. This script adds it.
+Windows has no native "jump to desktop N" shortcut, only cycle. This script
+fixes that and adds the rest of the i3 muscle memory that makes sense for
+a floating window manager.
 
 ## Hotkeys
 
+### Workspaces
+
 | Key | Action |
 |-----|--------|
-| `Alt+1..9`, `Alt+0` | Jump to desktop 1..10 (index order) |
-| `Alt+H` | Prev desktop (no wrap) |
-| `Alt+L` | Next desktop (no wrap) |
+| `Alt+1..9`, `Alt+0` | Jump to desktop 1..10 |
+| `Alt+Shift+1..9`, `Alt+Shift+0` | Move focused window to desktop 1..10 |
 | `Alt+N` | New desktop |
 | `Alt+Shift+W` | Remove current desktop (keeps at least 1) |
+
+### Windows (on current desktop)
+
+| Key | Action |
+|-----|--------|
+| `Alt+L` | Focus next window (Z-order cycle) |
+| `Alt+H` | Focus prev window |
+| `Alt+Shift+Q` | Close focused window |
+
+### Misc
+
+| Key | Action |
+|-----|--------|
 | `Alt+J` | Task View (Win+Tab) |
 
-Navigation is by index, not recency.
+Workspace navigation is by index, not recency.
 
-After every switch, the topmost visible window on the new desktop is
-activated. Windows does not move keyboard focus when you change virtual
-desktops, so without this your typing would land in the previously focused
-(now hidden) window.
+After every desktop switch (or after moving a window to another desktop),
+the topmost visible window on the current desktop is activated. Windows
+does not move keyboard focus when you change virtual desktops, so without
+this your typing would land in the previously focused (now hidden) window.
 
 ## Install
 
