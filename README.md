@@ -32,25 +32,34 @@ a floating window manager.
 | `Alt+C` | Center focused window on its monitor |
 | `Alt+Shift+Q` | Close focused window |
 
-Snap is a proxy to Windows' native `Win+Arrow`, so it inherits snap-assist,
-multi-monitor awareness, and snap-state cycling (half then quarter).
+Snap is implemented via direct `WinMove` against the focused window's
+monitor work area. (An earlier version proxied to Windows' native
+`Win+Arrow`, but the still-held physical `Shift` from the trigger chord
+was leaking through and turning `Win+Left/Right` into `Win+Shift+Left/Right`
+= move-to-other-monitor, which on a single monitor silently does nothing.)
 
 ### Known binding conflicts
 
-Two different system features compete for `Alt+Shift+H` on a typical
-Windows 11 install. AHK's low-level keyboard hook handles the binding
-itself, but the chord can also trigger an OS shell action that AHK
-can't suppress because the dispatch happens out-of-process.
+AHK's low-level keyboard hook handles every binding in this script and
+beats most in-process handlers (e.g. Firefox's AI Chatbot sidebar). But a
+few chords can also fire OS-level shell actions that get dispatched
+out-of-process, where AHK can't intercept. Two known offenders:
 
-**Microsoft Office "Office Key" chord.** If you have Microsoft 365 /
-Office Click-to-Run installed, the `ms-officeapp:` URI handler is
-registered and `Alt+Shift+H` (interpreted as `Office Key + H = Home`)
-shell-execs `https://go.microsoft.com/fwlink/?linkid=2044481&from=OfficeKey`
-in your default browser. Symptom: pressing the chord opens the
-Microsoft 365 home page in your browser even with the AHK script running
-and even with Microsoft 365 itself not running.
+**Microsoft Office "Office Key" chords.** If Microsoft 365 / Office
+Click-to-Run is installed, the `ms-officeapp:` URI handler is registered
+and Office Key chord letters shell-exec `https://go.microsoft.com/fwlink/...`
+URLs in your default browser. The Office Key chord scheme maps letters
+to Office apps: `H = Home (microsoft365.com)`, `W = Word`, `X = Excel`,
+`L = LinkedIn`, `O = Outlook`, `T = Teams`, `N = OneNote`, `D = OneDrive`,
+`P = PowerPoint`, `Y = Yammer`. Several of these (`H`, `W`, `L`) collide
+with this script's bindings.
 
-Neuter the URI handler with a per-user no-op:
+Symptom: pressing one of the snap or workspace-management hotkeys opens
+a Microsoft 365 page or launches an Office app in your browser, even
+with the AHK script running and even with Microsoft 365 itself not running.
+
+Neuter the URI handler with a per-user no-op (covers all Office Key chord
+letters at once, doesn't require admin, easy to reverse):
 
 ```cmd
 reg add "HKCU\Software\Classes\ms-officeapp\Shell\Open\Command" /ve /t REG_SZ /d rundll32 /f
@@ -60,9 +69,11 @@ Reverse with `reg delete "HKCU\Software\Classes\ms-officeapp\Shell\Open\Command"
 
 **Firefox 138+ AI Chatbot.** Firefox binds `Alt+Shift+H` to open its AI
 Chatbot sidebar via an in-process handler. AHK's `#UseHook true` plus
-the `$` prefix on each hotkey forces a low-level keyboard hook that
-beats Firefox in most setups. If Firefox still wins, disable the
-feature in `about:config`: set `browser.ml.chat.enabled` to `false`.
+the `$` prefix on each hotkey usually beats Firefox to the chord. If
+Firefox still wins on your machine (symptom: pressing `Alt+Shift+H`
+opens Firefox's AI sidebar instead of snapping the focused window),
+disable the feature in `about:config`: set `browser.ml.chat.enabled` to
+`false` and restart Firefox.
 
 ### Misc
 
