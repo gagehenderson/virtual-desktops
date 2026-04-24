@@ -13,8 +13,14 @@ Windows has no native "jump to desktop N" shortcut, only cycle. This script adds
 | `Alt+L` | Next desktop (no wrap) |
 | `Alt+N` | New desktop |
 | `Alt+Shift+W` | Remove current desktop (keeps at least 1) |
+| `Alt+J` | Task View (Win+Tab) |
 
 Navigation is by index, not recency.
+
+After every switch, the topmost visible window on the new desktop is
+activated. Windows does not move keyboard focus when you change virtual
+desktops, so without this your typing would land in the previously focused
+(now hidden) window.
 
 ## Install
 
@@ -32,3 +38,10 @@ When Windows updates break the DLL (rare, usually on major build upgrades), grab
 ## Tested on
 
 Windows 11 25H2, Build 26200.8246.
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
+
+The bundled `VirtualDesktopAccessor.dll` is a separate MIT-licensed work by
+Jari Pennanen (Ciantic). See [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
