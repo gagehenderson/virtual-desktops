@@ -32,25 +32,78 @@ GetCount() {
     return DllCall("VirtualDesktopAccessor\GetDesktopCount", "Int")
 }
 
+; Windows keeps keyboard focus on the previously focused window after a
+; virtual-desktop switch, even when that window is now hidden. That means
+; typing lands in the invisible window. After every switch, activate the
+; topmost visible window on the new desktop so focus follows the eye.
+IsCloaked(hwnd) {
+    cloaked := 0
+    DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", 14, "Int*", &cloaked, "UInt", 4)
+    return cloaked != 0
+}
+
+IsOnCurrentDesktop(hwnd) {
+    return DllCall("VirtualDesktopAccessor\IsWindowOnCurrentVirtualDesktop", "Ptr", hwnd, "Int")
+}
+
+FocusTopOnCurrentDesktop() {
+    static skipClasses := Map(
+        "Progman", 1,
+        "WorkerW", 1,
+        "Shell_TrayWnd", 1,
+        "Shell_SecondaryTrayWnd", 1,
+        "Windows.UI.Core.CoreWindow", 1,
+        "ApplicationFrameWindow", 0
+    )
+    Sleep 50
+    for hwnd in WinGetList() {
+        try {
+            style := WinGetStyle(hwnd)
+            if !(style & 0x10000000)
+                continue
+            if (WinGetMinMax(hwnd) = -1)
+                continue
+            cls := WinGetClass(hwnd)
+            if (skipClasses.Has(cls) && skipClasses[cls])
+                continue
+            if IsCloaked(hwnd)
+                continue
+            if !IsOnCurrentDesktop(hwnd)
+                continue
+            if (WinGetTitle(hwnd) = "")
+                continue
+            WinActivate(hwnd)
+            return
+        } catch {
+            continue
+        }
+    }
+}
+
 SwitchDesktop(n) {
     idx := n - 1
     count := GetCount()
     if (idx < 0 || idx >= count)
         return
     DllCall("VirtualDesktopAccessor\GoToDesktopNumber", "Int", idx)
+    FocusTopOnCurrentDesktop()
 }
 
 NextDesktop() {
     cur := GetCurrent()
     count := GetCount()
-    if (cur + 1 < count)
+    if (cur + 1 < count) {
         DllCall("VirtualDesktopAccessor\GoToDesktopNumber", "Int", cur + 1)
+        FocusTopOnCurrentDesktop()
+    }
 }
 
 PrevDesktop() {
     cur := GetCurrent()
-    if (cur > 0)
+    if (cur > 0) {
         DllCall("VirtualDesktopAccessor\GoToDesktopNumber", "Int", cur - 1)
+        FocusTopOnCurrentDesktop()
+    }
 }
 
 NewDesktop() {
