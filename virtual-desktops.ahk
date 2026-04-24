@@ -1,5 +1,12 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
+; Force the low-level keyboard hook for every hotkey below. This is what
+; lets AHK beat in-process handlers that other apps register for the same
+; chord (e.g. Firefox 138+ binds Alt+Shift+H to its AI Chatbot sidebar).
+; #UseHook + the `$` prefix on each hotkey guarantee WH_KEYBOARD_LL
+; handles the chord and swallows the event before other apps see it.
+#UseHook true
+InstallKeybdHook()
 
 ; ============================================================
 ; Virtual Desktop Hotkeys — "loose i3" for Windows
@@ -14,6 +21,9 @@
 ; Windows (on current desktop)
 ;   Alt+L                    Focus next window
 ;   Alt+H                    Focus prev window
+;   Alt+Shift+H/J/K/L        Snap focused window left / down / up / right
+;   Alt+F                    Fullscreen toggle
+;   Alt+C                    Center focused window on its monitor
 ;   Alt+Shift+Q              Close focused window
 ;
 ; Misc
@@ -137,6 +147,70 @@ KillFocused() {
         WinClose(hwnd)
 }
 
+; Direct snap-to-half via WinMove, instead of proxying to Windows' native
+; Win+Arrow. The proxy approach loses a race with the still-held physical
+; Shift on the trigger chord: when Shift is down, Win+Left/Right is
+; interpreted as Win+Shift+Left/Right (move-to-other-monitor) rather
+; than snap-half. WinMove avoids the modifier-state race entirely.
+SnapWindow(direction) {
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    if (WinGetMinMax(hwnd) = 1)
+        WinRestore(hwnd)
+    mon := GetMonitorOfWindow(hwnd)
+    MonitorGetWorkArea(mon, &mLeft, &mTop, &mRight, &mBottom)
+    fullW := mRight - mLeft
+    fullH := mBottom - mTop
+    halfW := fullW // 2
+    halfH := fullH // 2
+    switch direction {
+        case "Left":  WinMove(mLeft,         mTop,         halfW, fullH, hwnd)
+        case "Right": WinMove(mLeft + halfW, mTop,         halfW, fullH, hwnd)
+        case "Up":    WinMove(mLeft,         mTop,         fullW, halfH, hwnd)
+        case "Down":  WinMove(mLeft,         mTop + halfH, fullW, halfH, hwnd)
+    }
+}
+
+FullscreenToggle() {
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    if (WinGetMinMax(hwnd) = 1)
+        WinRestore(hwnd)
+    else
+        WinMaximize(hwnd)
+}
+
+; Find the monitor containing the window's center point, so centering
+; works correctly on multi-monitor setups instead of always using primary.
+GetMonitorOfWindow(hwnd) {
+    WinGetPos(&wx, &wy, &ww, &wh, hwnd)
+    cx := wx + ww // 2
+    cy := wy + wh // 2
+    count := MonitorGetCount()
+    loop count {
+        MonitorGet(A_Index, &mLeft, &mTop, &mRight, &mBottom)
+        if (cx >= mLeft && cx < mRight && cy >= mTop && cy < mBottom)
+            return A_Index
+    }
+    return MonitorGetPrimary()
+}
+
+CenterWindow() {
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    if (WinGetMinMax(hwnd) = 1)
+        WinRestore(hwnd)
+    WinGetPos(&wx, &wy, &ww, &wh, hwnd)
+    mon := GetMonitorOfWindow(hwnd)
+    MonitorGetWorkArea(mon, &mLeft, &mTop, &mRight, &mBottom)
+    newX := mLeft + ((mRight - mLeft) - ww) // 2
+    newY := mTop + ((mBottom - mTop) - wh) // 2
+    WinMove(newX, newY, , , hwnd)
+}
+
 ; i3's focus-prev/next in a floating WM: Z-order cycle through windows on
 ; the current desktop. list[1] is the currently active window, so "next"
 ; activates list[2] (the one behind it) and "prev" activates list[end]
@@ -195,8 +269,19 @@ TaskView() {
 !n::NewDesktop()
 !+w::RemoveCurrent()
 
+; Window snap (half-screen). Firefox 138+ binds Alt+Shift+H to its AI
+; Chatbot sidebar. The `$` prefix forces WH_KEYBOARD_LL registration
+; on each binding explicitly (defense in depth alongside #UseHook), so
+; AHK sees and swallows the keydown before Firefox does.
+$!+h::SnapWindow("Left")
+$!+j::SnapWindow("Down")
+$!+k::SnapWindow("Up")
+$!+l::SnapWindow("Right")
+
 ; Window management
 !+q::KillFocused()
+!f::FullscreenToggle()
+!c::CenterWindow()
 
 ; Task View
 !j::TaskView()
