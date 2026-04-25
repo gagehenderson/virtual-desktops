@@ -3,8 +3,8 @@
 ; Force the low-level keyboard hook for every hotkey below. This is what
 ; lets AHK beat in-process handlers that other apps register for the same
 ; chord (e.g. Firefox 138+ binds Alt+Shift+H to its AI Chatbot sidebar).
-; #UseHook + the `$` prefix on each hotkey guarantee WH_KEYBOARD_LL
-; handles the chord and swallows the event before other apps see it.
+; #UseHook guarantees WH_KEYBOARD_LL handles the chord and swallows
+; the event before other apps see it.
 #UseHook true
 InstallKeybdHook()
 
@@ -19,15 +19,11 @@ InstallKeybdHook()
 ;   Alt+Shift+W              Remove current desktop (won't remove last)
 ;
 ; Windows (on current desktop)
-;   Alt+L                    Focus next window
-;   Alt+H                    Focus prev window
-;   Alt+Shift+H/J/K/L        Snap focused window left / down / up / right
+;   Alt+H/J/K/L              Snap focused window left / down / up / right
 ;   Alt+F                    Fullscreen toggle
 ;   Alt+C                    Center focused window on its monitor
 ;   Alt+Shift+Q              Close focused window
-;
-; Misc
-;   Alt+J                    Task View (Win+Tab)
+;   Alt+T                    Task View (Win+Tab)
 ; ============================================================
 
 dllPath := A_ScriptDir . "\VirtualDesktopAccessor.dll"
@@ -211,30 +207,18 @@ CenterWindow() {
     WinMove(newX, newY, , , hwnd)
 }
 
-; i3's focus-prev/next in a floating WM: Z-order cycle through windows on
-; the current desktop. list[1] is the currently active window, so "next"
-; activates list[2] (the one behind it) and "prev" activates list[end]
-; (the bottom of the stack, which rotates back to front).
-FocusNextWindow() {
-    list := GetDesktopWindows()
-    if (list.Length >= 2)
-        WinActivate(list[2])
-}
-
-FocusPrevWindow() {
-    list := GetDesktopWindows()
-    if (list.Length >= 2)
-        WinActivate(list[list.Length])
-}
-
+; Send Win+Tab via SendEvent. Win11 Task View on 25H2 ignores
+; SendInput-injected Win+Tab when the low-level keyboard hook is active
+; (filtered by LLKHF_INJECTED). SendEvent uses the older keybd_event
+; path that Task View accepts. Releasing held Alt first prevents the
+; synthetic Win+Tab from being mistaken for Alt+Tab.
 TaskView() {
-    SendInput("{LAlt up}{RAlt up}")
-    Sleep 30
-    SendInput("{LWin down}")
-    Sleep 30
-    SendInput("{Tab}")
-    Sleep 30
-    SendInput("{LWin up}")
+    prevMode := A_SendMode
+    SendMode "Event"
+    SendEvent "{LAlt up}{RAlt up}"
+    Sleep 50
+    SendEvent "#{Tab}"
+    SendMode prevMode
 }
 
 ; Workspace jumps
@@ -261,27 +245,22 @@ TaskView() {
 !+9::MoveWindowToWorkspace(9)
 !+0::MoveWindowToWorkspace(10)
 
-; Window focus cycling (current desktop)
-!h::FocusPrevWindow()
-!l::FocusNextWindow()
-
 ; Workspace management
 !n::NewDesktop()
 !+w::RemoveCurrent()
 
-; Window snap (half-screen). Firefox 138+ binds Alt+Shift+H to its AI
-; Chatbot sidebar. The `$` prefix forces WH_KEYBOARD_LL registration
-; on each binding explicitly (defense in depth alongside #UseHook), so
-; AHK sees and swallows the keydown before Firefox does.
-$!+h::SnapWindow("Left")
-$!+j::SnapWindow("Down")
-$!+k::SnapWindow("Up")
-$!+l::SnapWindow("Right")
+; Window snap (half-screen)
+!h::SnapWindow("Left")
+!j::SnapWindow("Down")
+!k::SnapWindow("Up")
+!l::SnapWindow("Right")
 
 ; Window management
 !+q::KillFocused()
 !f::FullscreenToggle()
 !c::CenterWindow()
 
-; Task View
-!j::TaskView()
+; Task View. `$` prefix forces explicit WH_KEYBOARD_LL registration as
+; defense-in-depth alongside #UseHook, so AHK swallows the chord before
+; any in-process app handler (Firefox Tools menu, etc.) can see it.
+$!t::TaskView()
