@@ -24,7 +24,7 @@ a floating window manager.
 
 | Key | Action |
 |-----|--------|
-| `Alt+H` / `Alt+L` | Snap focused window left / right. Cycles on rapid retap: half → third → two-thirds → wraps back to half. |
+| `Alt+H` / `Alt+L` | Snap focused window left / right. Cycles on rapid retap: half → third → two-thirds → quarter → wraps back to half. |
 | `Alt+M` | Snap focused window to middle third (no cycle) |
 | `Alt+J` / `Alt+K` | Snap focused window down / up half |
 | `Alt+F` | Fullscreen toggle |

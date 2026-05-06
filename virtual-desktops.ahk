@@ -20,8 +20,8 @@ InstallKeybdHook()
 ;
 ; Windows (on current desktop)
 ;   Alt+H/L                  Cycle horizontal snap on tap:
-;                              tap 1 = half, tap 2 = third, tap 3 = two-thirds
-;                              wraps back to half on tap 4
+;                              tap 1 = half, tap 2 = third, tap 3 = two-thirds,
+;                              tap 4 = quarter, tap 5 wraps back to half
 ;                              500ms window between taps resets the cycle
 ;   Alt+J/K                  Snap focused window down / up (half)
 ;   Alt+M                    Middle third (no cycle)
@@ -173,8 +173,9 @@ SnapWindow(direction) {
     }
 }
 
-; Column tiling for ultrawide. Computes thirds from the focused window's
-; monitor work area. RightTwoThirds anchors at left+1/3 so width sums match.
+; Column tiling for ultrawide. Computes thirds and quarters from the
+; focused window's monitor work area. The Right* zones anchor so the
+; window sits flush to the right edge.
 SnapColumn(zone) {
     hwnd := WinExist("A")
     if !hwnd
@@ -187,12 +188,15 @@ SnapColumn(zone) {
     fullH := mBottom - mTop
     third := fullW // 3
     twoThird := (fullW * 2) // 3
+    quarter := fullW // 4
     switch zone {
-        case "LeftThird":      WinMove(mLeft,           mTop, third,    fullH, hwnd)
-        case "MiddleThird":    WinMove(mLeft + third,   mTop, third,    fullH, hwnd)
-        case "RightThird":     WinMove(mLeft + 2*third, mTop, third,    fullH, hwnd)
-        case "LeftTwoThirds":  WinMove(mLeft,           mTop, twoThird, fullH, hwnd)
-        case "RightTwoThirds": WinMove(mLeft + third,   mTop, twoThird, fullH, hwnd)
+        case "LeftThird":      WinMove(mLeft,             mTop, third,    fullH, hwnd)
+        case "MiddleThird":    WinMove(mLeft + third,     mTop, third,    fullH, hwnd)
+        case "RightThird":     WinMove(mLeft + 2*third,   mTop, third,    fullH, hwnd)
+        case "LeftTwoThirds":  WinMove(mLeft,             mTop, twoThird, fullH, hwnd)
+        case "RightTwoThirds": WinMove(mLeft + third,     mTop, twoThird, fullH, hwnd)
+        case "LeftQuarter":    WinMove(mLeft,             mTop, quarter,  fullH, hwnd)
+        case "RightQuarter":   WinMove(mLeft + 3*quarter, mTop, quarter,  fullH, hwnd)
     }
 }
 
@@ -200,16 +204,18 @@ SnapColumn(zone) {
 ;   tap 1 -> half
 ;   tap 2 -> third
 ;   tap 3 -> two-thirds
-;   tap 4 -> wraps to half
+;   tap 4 -> quarter
+;   tap 5 -> wraps to half
 ; Cycle resets if the gap between taps exceeds CycleTapWindowMs, OR if
 ; the focused window changed between taps (so each window starts at tap 1).
 global CycleTapState := Map("Left", 0, "Right", 0)
 global CycleTapTime  := Map("Left", 0, "Right", 0)
 global CycleTapHwnd  := Map("Left", 0, "Right", 0)
 global CycleTapWindowMs := 500
+global CycleStateCount := 4
 
 CycleHorizontalSnap(side) {
-    global CycleTapState, CycleTapTime, CycleTapHwnd, CycleTapWindowMs
+    global CycleTapState, CycleTapTime, CycleTapHwnd, CycleTapWindowMs, CycleStateCount
     hwnd := WinExist("A")
     if !hwnd
         return
@@ -217,7 +223,7 @@ CycleHorizontalSnap(side) {
     sameWindow := CycleTapHwnd[side] = hwnd
     inWindow := (now - CycleTapTime[side]) < CycleTapWindowMs
     if (sameWindow && inWindow) {
-        next := Mod(CycleTapState[side], 3) + 1
+        next := Mod(CycleTapState[side], CycleStateCount) + 1
     } else {
         next := 1
     }
@@ -230,12 +236,14 @@ CycleHorizontalSnap(side) {
             case 1: SnapWindow("Left")
             case 2: SnapColumn("LeftThird")
             case 3: SnapColumn("LeftTwoThirds")
+            case 4: SnapColumn("LeftQuarter")
         }
     } else {
         switch next {
             case 1: SnapWindow("Right")
             case 2: SnapColumn("RightThird")
             case 3: SnapColumn("RightTwoThirds")
+            case 4: SnapColumn("RightQuarter")
         }
     }
 }
