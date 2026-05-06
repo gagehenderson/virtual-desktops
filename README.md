@@ -24,8 +24,9 @@ a floating window manager.
 
 | Key | Action |
 |-----|--------|
-| `Alt+H` / `Alt+L` | Snap focused window left / right half |
-| `Alt+J` / `Alt+K` | Snap focused window down / up |
+| `Alt+H` / `Alt+L` | Snap focused window left / right. Cycles on rapid retap: half → third → two-thirds → wraps back to half. |
+| `Alt+M` | Snap focused window to middle third (no cycle) |
+| `Alt+J` / `Alt+K` | Snap focused window down / up half |
 | `Alt+F` | Fullscreen toggle |
 | `Alt+C` | Center focused window on its monitor |
 | `Alt+Shift+Q` | Close focused window |
@@ -33,6 +34,12 @@ a floating window manager.
 
 Snap is implemented via direct `WinMove` against the focused window's
 monitor work area.
+
+The `Alt+H` / `Alt+L` cycle is independent per side (your left counter
+isn't affected by tapping right). Cycle resets if the gap between taps
+exceeds 500ms, or if you switch focus to a different window. Useful on
+ultrawide displays where halves alone don't carve up enough zones, but
+the same cycle works fine on any aspect ratio.
 
 ### Known binding conflicts
 

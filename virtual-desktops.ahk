@@ -19,7 +19,12 @@ InstallKeybdHook()
 ;   Alt+Shift+W              Remove current desktop (won't remove last)
 ;
 ; Windows (on current desktop)
-;   Alt+H/J/K/L              Snap focused window left / down / up / right
+;   Alt+H/L                  Cycle horizontal snap on tap:
+;                              tap 1 = half, tap 2 = third, tap 3 = two-thirds
+;                              wraps back to half on tap 4
+;                              500ms window between taps resets the cycle
+;   Alt+J/K                  Snap focused window down / up (half)
+;   Alt+M                    Middle third (no cycle)
 ;   Alt+F                    Fullscreen toggle
 ;   Alt+C                    Center focused window on its monitor
 ;   Alt+Shift+Q              Close focused window
@@ -168,6 +173,73 @@ SnapWindow(direction) {
     }
 }
 
+; Column tiling for ultrawide. Computes thirds from the focused window's
+; monitor work area. RightTwoThirds anchors at left+1/3 so width sums match.
+SnapColumn(zone) {
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    if (WinGetMinMax(hwnd) = 1)
+        WinRestore(hwnd)
+    mon := GetMonitorOfWindow(hwnd)
+    MonitorGetWorkArea(mon, &mLeft, &mTop, &mRight, &mBottom)
+    fullW := mRight - mLeft
+    fullH := mBottom - mTop
+    third := fullW // 3
+    twoThird := (fullW * 2) // 3
+    switch zone {
+        case "LeftThird":      WinMove(mLeft,           mTop, third,    fullH, hwnd)
+        case "MiddleThird":    WinMove(mLeft + third,   mTop, third,    fullH, hwnd)
+        case "RightThird":     WinMove(mLeft + 2*third, mTop, third,    fullH, hwnd)
+        case "LeftTwoThirds":  WinMove(mLeft,           mTop, twoThird, fullH, hwnd)
+        case "RightTwoThirds": WinMove(mLeft + third,   mTop, twoThird, fullH, hwnd)
+    }
+}
+
+; Cycle horizontal snap on rapid retap.
+;   tap 1 -> half
+;   tap 2 -> third
+;   tap 3 -> two-thirds
+;   tap 4 -> wraps to half
+; Cycle resets if the gap between taps exceeds CycleTapWindowMs, OR if
+; the focused window changed between taps (so each window starts at tap 1).
+global CycleTapState := Map("Left", 0, "Right", 0)
+global CycleTapTime  := Map("Left", 0, "Right", 0)
+global CycleTapHwnd  := Map("Left", 0, "Right", 0)
+global CycleTapWindowMs := 500
+
+CycleHorizontalSnap(side) {
+    global CycleTapState, CycleTapTime, CycleTapHwnd, CycleTapWindowMs
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    now := A_TickCount
+    sameWindow := CycleTapHwnd[side] = hwnd
+    inWindow := (now - CycleTapTime[side]) < CycleTapWindowMs
+    if (sameWindow && inWindow) {
+        next := Mod(CycleTapState[side], 3) + 1
+    } else {
+        next := 1
+    }
+    CycleTapState[side] := next
+    CycleTapTime[side]  := now
+    CycleTapHwnd[side]  := hwnd
+
+    if (side = "Left") {
+        switch next {
+            case 1: SnapWindow("Left")
+            case 2: SnapColumn("LeftThird")
+            case 3: SnapColumn("LeftTwoThirds")
+        }
+    } else {
+        switch next {
+            case 1: SnapWindow("Right")
+            case 2: SnapColumn("RightThird")
+            case 3: SnapColumn("RightTwoThirds")
+        }
+    }
+}
+
 FullscreenToggle() {
     hwnd := WinExist("A")
     if !hwnd
@@ -249,11 +321,12 @@ TaskView() {
 !n::NewDesktop()
 !+w::RemoveCurrent()
 
-; Window snap (half-screen)
-!h::SnapWindow("Left")
+; Window snap. H/L cycle: half -> third -> two-thirds -> half. J/K stay half.
+!h::CycleHorizontalSnap("Left")
 !j::SnapWindow("Down")
 !k::SnapWindow("Up")
-!l::SnapWindow("Right")
+!l::CycleHorizontalSnap("Right")
+!m::SnapColumn("MiddleThird")
 
 ; Window management
 !+q::KillFocused()
