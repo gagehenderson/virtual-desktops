@@ -103,3 +103,7 @@ GridRectToPixels(rect, mLeft, mTop, mRight, mBottom, columns := 12, rows := 2) {
     bottom := Round(mTop + (rect["row"] + rect["rowSpan"]) * cellH)
     return Map("x", x, "y", y, "w", right - x, "h", bottom - y)
 }
+
+WindowCenterFromRect(x, y, w, h) {
+    return Map("x", x + w // 2, "y", y + h // 2)
+}

@@ -8,6 +8,7 @@
 #UseHook true
 #Include window-grid.ahk
 InstallKeybdHook()
+CoordMode "Mouse", "Screen"
 
 ; ============================================================
 ; Virtual Desktop Hotkeys — "loose i3" for Windows
@@ -202,6 +203,14 @@ GetWindowRectMap(hwnd) {
     )
 }
 
+MoveMouseToWindowCenter(hwnd) {
+    try {
+        WinGetPos(&x, &y, &w, &h, hwnd)
+        point := WindowCenterFromRect(x, y, w, h)
+        MouseMove(point["x"], point["y"], 0)
+    }
+}
+
 DirectionalFocusScore(active, candidate, direction) {
     switch direction {
         case "Left":
@@ -263,8 +272,10 @@ FocusWindow(direction) {
             bestScore := score
         }
     }
-    if bestHwnd
+    if bestHwnd {
         WinActivate(bestHwnd)
+        MoveMouseToWindowCenter(bestHwnd)
+    }
 }
 
 FullscreenToggle() {

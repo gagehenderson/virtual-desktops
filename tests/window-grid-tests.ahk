@@ -14,6 +14,11 @@ AssertRect(rect, col, row, colSpan, rowSpan, message) {
     AssertEqual(rect["rowSpan"], rowSpan, message . " rowSpan")
 }
 
+AssertPoint(point, x, y, message) {
+    AssertEqual(point["x"], x, message . " x")
+    AssertEqual(point["y"], y, message . " y")
+}
+
 RunTests() {
     half := Map("col", 0, "row", 0, "colSpan", 6, "rowSpan", 2)
     AssertRect(GridMoveRect(half, "Right"), 6, 0, 6, 2, "half moves to right half")
@@ -41,6 +46,8 @@ RunTests() {
     pixels := GridRectToPixels(Map("col", 9, "row", 1, "colSpan", 3, "rowSpan", 1), 0, 0, 3839, 2159)
     AssertEqual(pixels["x"] + pixels["w"], 3839, "right edge aligns with monitor work area")
     AssertEqual(pixels["y"] + pixels["h"], 2159, "bottom edge aligns with monitor work area")
+
+    AssertPoint(WindowCenterFromRect(100, 200, 801, 601), 500, 500, "window center uses screen rectangle")
 }
 
 try {

@@ -48,7 +48,8 @@ same direction instead. There is no resize mode.
 
 Focus switching uses the real visible window rectangles on the current
 virtual desktop, so it works with both snapped and manually positioned
-windows.
+windows. When focus changes through `Alt+H/J/K/L`, the mouse pointer moves
+to the center of the newly focused window.
 
 ### Known binding conflicts
 
