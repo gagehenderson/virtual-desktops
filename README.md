@@ -24,22 +24,31 @@ a floating window manager.
 
 | Key | Action |
 |-----|--------|
-| `Alt+H` / `Alt+L` | Snap focused window left / right. Cycles on rapid retap: half → third → two-thirds → quarter → wraps back to half. |
-| `Alt+M` | Snap focused window to middle third (no cycle) |
-| `Alt+J` / `Alt+K` | Snap focused window down / up half |
+| `Alt+H` / `Alt+J` / `Alt+K` / `Alt+L` | Focus nearest window left / down / up / right |
+| `Alt+Shift+H` / `Alt+Shift+J` / `Alt+Shift+K` / `Alt+Shift+L` | Move focused window left / down / up / right on the snap grid |
+| `Alt+Ctrl+H` / `Alt+Ctrl+J` / `Alt+Ctrl+K` / `Alt+Ctrl+L` | Resize focused window left / down / up / right on the snap grid |
 | `Alt+F` | Fullscreen toggle |
 | `Alt+C` | Center focused window on its monitor |
 | `Alt+Shift+Q` | Close focused window |
 | `Alt+T` | Task View (Win+Tab) |
 
-Snap is implemented via direct `WinMove` against the focused window's
-monitor work area.
+Window movement and resizing are implemented via direct `WinMove` against
+the focused window's monitor work area.
 
-The `Alt+H` / `Alt+L` cycle is independent per side (your left counter
-isn't affected by tapping right). Cycle resets if the gap between taps
-exceeds 500ms, or if you switch focus to a different window. Useful on
-ultrawide displays where halves alone don't carve up enough zones, but
-the same cycle works fine on any aspect ratio.
+The snap grid is 12 columns by 2 rows per monitor. It supports full-height
+halves, full-height thirds, dense 8-window layouts, and mixed layouts like
+one full-height half plus four corner windows on the other half. Movement
+preserves the window's current grid footprint: a half-width window moves
+between halves, a third-width window moves between thirds, and a dense
+quarter-half window moves between dense slots.
+
+Resize changes the requested edge by one grid column or row. If that edge
+is already against the monitor boundary, the opposite edge moves in the
+same direction instead. There is no resize mode.
+
+Focus switching uses the real visible window rectangles on the current
+virtual desktop, so it works with both snapped and manually positioned
+windows.
 
 ### Known binding conflicts
 
@@ -49,8 +58,8 @@ URI handler is registered and Office Key chord letters shell-exec
 Office Key chord scheme maps letters to Office apps (`W = Word`, `H =
 Home`, etc.), and a few of these chords can fire even from `Alt+Shift+`
 combos depending on the keyboard. Symptom: pressing `Alt+Shift+W` (remove
-desktop) or another script binding opens a Microsoft 365 page in your
-browser.
+desktop), `Alt+Shift+H` (move window left), or another script binding opens
+a Microsoft 365 page in your browser.
 
 Neuter the URI handler with a per-user no-op (covers all Office Key chord
 letters at once, doesn't require admin, easy to reverse):

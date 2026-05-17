@@ -6,6 +6,7 @@
 ; #UseHook guarantees WH_KEYBOARD_LL handles the chord and swallows
 ; the event before other apps see it.
 #UseHook true
+#Include window-grid.ahk
 InstallKeybdHook()
 
 ; ============================================================
@@ -19,12 +20,9 @@ InstallKeybdHook()
 ;   Alt+Shift+W              Remove current desktop (won't remove last)
 ;
 ; Windows (on current desktop)
-;   Alt+H/L                  Cycle horizontal snap on tap:
-;                              tap 1 = half, tap 2 = third, tap 3 = two-thirds,
-;                              tap 4 = quarter, tap 5 wraps back to half
-;                              500ms window between taps resets the cycle
-;   Alt+J/K                  Snap focused window down / up (half)
-;   Alt+M                    Middle third (no cycle)
+;   Alt+H/J/K/L              Focus nearest window left/down/up/right
+;   Alt+Shift+H/J/K/L        Move focused window on a 12x2 grid
+;   Alt+Ctrl+H/J/K/L         Resize focused window on a 12x2 grid
 ;   Alt+F                    Fullscreen toggle
 ;   Alt+C                    Center focused window on its monitor
 ;   Alt+Shift+Q              Close focused window
@@ -148,104 +146,125 @@ KillFocused() {
         WinClose(hwnd)
 }
 
-; Direct snap-to-half via WinMove, instead of proxying to Windows' native
-; Win+Arrow. The proxy approach loses a race with the still-held physical
-; Shift on the trigger chord: when Shift is down, Win+Left/Right is
-; interpreted as Win+Shift+Left/Right (move-to-other-monitor) rather
-; than snap-half. WinMove avoids the modifier-state race entirely.
-SnapWindow(direction) {
+EnsureRestored(hwnd) {
+    if (WinGetMinMax(hwnd) = 1)
+        WinRestore(hwnd)
+}
+
+GetGridContext(hwnd) {
+    WinGetPos(&wx, &wy, &ww, &wh, hwnd)
+    mon := GetMonitorOfWindow(hwnd)
+    MonitorGetWorkArea(mon, &mLeft, &mTop, &mRight, &mBottom)
+    rect := GridRectFromPixels(mLeft, mTop, mRight, mBottom, wx, wy, ww, wh)
+    return Map(
+        "rect", rect,
+        "mLeft", mLeft,
+        "mTop", mTop,
+        "mRight", mRight,
+        "mBottom", mBottom
+    )
+}
+
+ApplyGridRect(hwnd, context, rect) {
+    pixels := GridRectToPixels(rect, context["mLeft"], context["mTop"], context["mRight"], context["mBottom"])
+    WinMove(pixels["x"], pixels["y"], pixels["w"], pixels["h"], hwnd)
+}
+
+MoveWindowOnGrid(direction) {
     hwnd := WinExist("A")
     if !hwnd
         return
-    if (WinGetMinMax(hwnd) = 1)
-        WinRestore(hwnd)
-    mon := GetMonitorOfWindow(hwnd)
-    MonitorGetWorkArea(mon, &mLeft, &mTop, &mRight, &mBottom)
-    fullW := mRight - mLeft
-    fullH := mBottom - mTop
-    halfW := fullW // 2
-    halfH := fullH // 2
+    EnsureRestored(hwnd)
+    context := GetGridContext(hwnd)
+    rect := GridMoveRect(context["rect"], direction)
+    ApplyGridRect(hwnd, context, rect)
+}
+
+ResizeWindowOnGrid(direction) {
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    EnsureRestored(hwnd)
+    context := GetGridContext(hwnd)
+    rect := GridResizeRect(context["rect"], direction)
+    ApplyGridRect(hwnd, context, rect)
+}
+
+GetWindowRectMap(hwnd) {
+    WinGetPos(&x, &y, &w, &h, hwnd)
+    return Map(
+        "left", x,
+        "top", y,
+        "right", x + w,
+        "bottom", y + h,
+        "cx", x + w / 2,
+        "cy", y + h / 2
+    )
+}
+
+DirectionalFocusScore(active, candidate, direction) {
     switch direction {
-        case "Left":  WinMove(mLeft,         mTop,         halfW, fullH, hwnd)
-        case "Right": WinMove(mLeft + halfW, mTop,         halfW, fullH, hwnd)
-        case "Up":    WinMove(mLeft,         mTop,         fullW, halfH, hwnd)
-        case "Down":  WinMove(mLeft,         mTop + halfH, fullW, halfH, hwnd)
+        case "Left":
+            if (candidate["cx"] >= active["cx"])
+                return ""
+            overlap := Min(active["bottom"], candidate["bottom"]) - Max(active["top"], candidate["top"])
+            gap := Max(0, active["left"] - candidate["right"])
+            perpendicular := Abs(active["cy"] - candidate["cy"])
+        case "Right":
+            if (candidate["cx"] <= active["cx"])
+                return ""
+            overlap := Min(active["bottom"], candidate["bottom"]) - Max(active["top"], candidate["top"])
+            gap := Max(0, candidate["left"] - active["right"])
+            perpendicular := Abs(active["cy"] - candidate["cy"])
+        case "Up":
+            if (candidate["cy"] >= active["cy"])
+                return ""
+            overlap := Min(active["right"], candidate["right"]) - Max(active["left"], candidate["left"])
+            gap := Max(0, active["top"] - candidate["bottom"])
+            perpendicular := Abs(active["cx"] - candidate["cx"])
+        case "Down":
+            if (candidate["cy"] <= active["cy"])
+                return ""
+            overlap := Min(active["right"], candidate["right"]) - Max(active["left"], candidate["left"])
+            gap := Max(0, candidate["top"] - active["bottom"])
+            perpendicular := Abs(active["cx"] - candidate["cx"])
+        default:
+            return ""
     }
+    overlapPenalty := (overlap > 0) ? 0 : 1
+    return overlapPenalty * 1000000000 + gap * 100000 + perpendicular
 }
 
-; Column tiling for ultrawide. Computes thirds and quarters from the
-; focused window's monitor work area. The Right* zones anchor so the
-; window sits flush to the right edge.
-SnapColumn(zone) {
-    hwnd := WinExist("A")
-    if !hwnd
+FocusWindow(direction) {
+    activeHwnd := WinExist("A")
+    if !activeHwnd
         return
-    if (WinGetMinMax(hwnd) = 1)
-        WinRestore(hwnd)
-    mon := GetMonitorOfWindow(hwnd)
-    MonitorGetWorkArea(mon, &mLeft, &mTop, &mRight, &mBottom)
-    fullW := mRight - mLeft
-    fullH := mBottom - mTop
-    third := fullW // 3
-    twoThird := (fullW * 2) // 3
-    quarter := fullW // 4
-    switch zone {
-        case "LeftThird":      WinMove(mLeft,             mTop, third,    fullH, hwnd)
-        case "MiddleThird":    WinMove(mLeft + third,     mTop, third,    fullH, hwnd)
-        case "RightThird":     WinMove(mLeft + 2*third,   mTop, third,    fullH, hwnd)
-        case "LeftTwoThirds":  WinMove(mLeft,             mTop, twoThird, fullH, hwnd)
-        case "RightTwoThirds": WinMove(mLeft + third,     mTop, twoThird, fullH, hwnd)
-        case "LeftQuarter":    WinMove(mLeft,             mTop, quarter,  fullH, hwnd)
-        case "RightQuarter":   WinMove(mLeft + 3*quarter, mTop, quarter,  fullH, hwnd)
-    }
-}
-
-; Cycle horizontal snap on rapid retap.
-;   tap 1 -> half
-;   tap 2 -> third
-;   tap 3 -> two-thirds
-;   tap 4 -> quarter
-;   tap 5 -> wraps to half
-; Cycle resets if the gap between taps exceeds CycleTapWindowMs, OR if
-; the focused window changed between taps (so each window starts at tap 1).
-global CycleTapState := Map("Left", 0, "Right", 0)
-global CycleTapTime  := Map("Left", 0, "Right", 0)
-global CycleTapHwnd  := Map("Left", 0, "Right", 0)
-global CycleTapWindowMs := 500
-global CycleStateCount := 4
-
-CycleHorizontalSnap(side) {
-    global CycleTapState, CycleTapTime, CycleTapHwnd, CycleTapWindowMs, CycleStateCount
-    hwnd := WinExist("A")
-    if !hwnd
+    try {
+        activeRect := GetWindowRectMap(activeHwnd)
+    } catch {
         return
-    now := A_TickCount
-    sameWindow := CycleTapHwnd[side] = hwnd
-    inWindow := (now - CycleTapTime[side]) < CycleTapWindowMs
-    if (sameWindow && inWindow) {
-        next := Mod(CycleTapState[side], CycleStateCount) + 1
-    } else {
-        next := 1
     }
-    CycleTapState[side] := next
-    CycleTapTime[side]  := now
-    CycleTapHwnd[side]  := hwnd
 
-    if (side = "Left") {
-        switch next {
-            case 1: SnapWindow("Left")
-            case 2: SnapColumn("LeftThird")
-            case 3: SnapColumn("LeftTwoThirds")
-            case 4: SnapColumn("LeftQuarter")
+    bestHwnd := 0
+    bestScore := ""
+    for hwnd in GetDesktopWindows() {
+        if (hwnd = activeHwnd)
+            continue
+        try {
+            candidateRect := GetWindowRectMap(hwnd)
+            score := DirectionalFocusScore(activeRect, candidateRect, direction)
+        } catch {
+            continue
         }
-    } else {
-        switch next {
-            case 1: SnapWindow("Right")
-            case 2: SnapColumn("RightThird")
-            case 3: SnapColumn("RightTwoThirds")
-            case 4: SnapColumn("RightQuarter")
+        if (score = "")
+            continue
+        if (!bestHwnd || score < bestScore) {
+            bestHwnd := hwnd
+            bestScore := score
         }
     }
+    if bestHwnd
+        WinActivate(bestHwnd)
 }
 
 FullscreenToggle() {
@@ -329,12 +348,21 @@ TaskView() {
 !n::NewDesktop()
 !+w::RemoveCurrent()
 
-; Window snap. H/L cycle: half -> third -> two-thirds -> half. J/K stay half.
-!h::CycleHorizontalSnap("Left")
-!j::SnapWindow("Down")
-!k::SnapWindow("Up")
-!l::CycleHorizontalSnap("Right")
-!m::SnapColumn("MiddleThird")
+; i3-style window navigation and arrangement.
+!h::FocusWindow("Left")
+!j::FocusWindow("Down")
+!k::FocusWindow("Up")
+!l::FocusWindow("Right")
+
+!+h::MoveWindowOnGrid("Left")
+!+j::MoveWindowOnGrid("Down")
+!+k::MoveWindowOnGrid("Up")
+!+l::MoveWindowOnGrid("Right")
+
+!^h::ResizeWindowOnGrid("Left")
+!^j::ResizeWindowOnGrid("Down")
+!^k::ResizeWindowOnGrid("Up")
+!^l::ResizeWindowOnGrid("Right")
 
 ; Window management
 !+q::KillFocused()

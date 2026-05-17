@@ -32,9 +32,11 @@ The grid is an implementation detail. The user should experience this as directi
 
 ## Movement Behavior
 
-Movement starts from the focused window's current rectangle, converts it to the nearest grid footprint on that monitor, then shifts that footprint one valid grid step in the requested direction.
+Movement starts from the focused window's current rectangle, converts it to the nearest grid footprint on that monitor, then shifts that footprint one valid placement in the requested direction.
 
 Movement preserves width and height. For example, a `3 x 1` window in the upper-right half can move down into the lower-right slot without becoming full-width or full-height.
+
+Horizontal movement uses the window's current column span as its jump size. A `6`-column half moves between left and right halves; a `4`-column third moves between left, middle, and right thirds; a `3`-column dense window moves between the four dense columns. Vertical movement uses the current row span, so half-height windows move between top and bottom while full-height windows stay full-height.
 
 If the window is not already aligned to the grid, the first move should snap it to the nearest equivalent grid footprint before moving. If movement would leave the monitor bounds, clamp at the edge.
 
@@ -42,7 +44,7 @@ If the window is not already aligned to the grid, the first move should snap it 
 
 Resize also starts from the current rectangle and converts it to the nearest grid footprint.
 
-Resize changes the nearest directional edge by one grid step. If that edge is already against the monitor boundary, move the opposite edge in the same direction instead. For example, `Alt+Ctrl+L` grows a window to the right when there is room; if the right edge is already at the monitor edge, it shrinks the window from the left.
+Resize changes the nearest directional edge by one grid column or row. If that edge is already against the monitor boundary, move the opposite edge in the same direction instead. For example, `Alt+Ctrl+L` grows a window to the right when there is room; if the right edge is already at the monitor edge, it shrinks the window from the left. Single-column horizontal resizing is intentional so thirds (`4` columns) and dense quarter-half slots (`3` columns) are both reachable.
 
 The implementation should clamp to the monitor bounds and enforce a minimum footprint of `3 columns x 1 row`, which matches the densest intended layout.
 
