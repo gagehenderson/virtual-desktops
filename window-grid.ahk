@@ -104,6 +104,12 @@ GridRectToPixels(rect, mLeft, mTop, mRight, mBottom, columns := 12, rows := 2) {
     return Map("x", x, "y", y, "w", right - x, "h", bottom - y)
 }
 
+GridCenteredFullHeightRect(columns := 12, rows := 2, minColumns := 3) {
+    colSpan := Max(minColumns, columns // 3)
+    col := (columns - colSpan) // 2
+    return GridNormalizeRect(Map("col", col, "row", 0, "colSpan", colSpan, "rowSpan", rows), columns, rows, minColumns)
+}
+
 WindowCenterFromRect(x, y, w, h) {
     return Map("x", x + w // 2, "y", y + h // 2)
 }

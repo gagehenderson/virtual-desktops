@@ -24,6 +24,7 @@ CoordMode "Mouse", "Screen"
 ;   Alt+H/J/K/L              Focus nearest window left/down/up/right
 ;   Alt+Shift+H/J/K/L        Move focused window on a 12x2 grid
 ;   Alt+Ctrl+H/J/K/L         Resize focused window on a 12x2 grid
+;   Alt+M                    Middle third, full monitor work-area height
 ;   Alt+F                    Fullscreen toggle
 ;   Alt+C                    Center focused window on its monitor
 ;   Alt+Shift+Q              Close focused window
@@ -189,6 +190,15 @@ ResizeWindowOnGrid(direction) {
     context := GetGridContext(hwnd)
     rect := GridResizeRect(context["rect"], direction)
     ApplyGridRect(hwnd, context, rect)
+}
+
+CenterFullHeightWindow() {
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    EnsureRestored(hwnd)
+    context := GetGridContext(hwnd)
+    ApplyGridRect(hwnd, context, GridCenteredFullHeightRect())
 }
 
 GetWindowRectMap(hwnd) {
@@ -374,6 +384,7 @@ TaskView() {
 !^j::ResizeWindowOnGrid("Down")
 !^k::ResizeWindowOnGrid("Up")
 !^l::ResizeWindowOnGrid("Right")
+!m::CenterFullHeightWindow()
 
 ; Window management
 !+q::KillFocused()

@@ -27,6 +27,7 @@ a floating window manager.
 | `Alt+H` / `Alt+J` / `Alt+K` / `Alt+L` | Focus nearest window left / down / up / right |
 | `Alt+Shift+H` / `Alt+Shift+J` / `Alt+Shift+K` / `Alt+Shift+L` | Move focused window left / down / up / right on the snap grid |
 | `Alt+Ctrl+H` / `Alt+Ctrl+J` / `Alt+Ctrl+K` / `Alt+Ctrl+L` | Resize focused window left / down / up / right on the snap grid |
+| `Alt+M` | Move focused window to the centered full-height third |
 | `Alt+F` | Fullscreen toggle |
 | `Alt+C` | Center focused window on its monitor |
 | `Alt+Shift+Q` | Close focused window |

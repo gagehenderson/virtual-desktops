@@ -43,6 +43,8 @@ RunTests() {
     fromPixels := GridRectFromPixels(0, 0, 3840, 2160, 1280, 0, 1280, 2160)
     AssertRect(fromPixels, 4, 0, 4, 2, "pixel conversion recognizes middle third")
 
+    AssertRect(GridCenteredFullHeightRect(), 4, 0, 4, 2, "centered full-height rect is middle third")
+
     pixels := GridRectToPixels(Map("col", 9, "row", 1, "colSpan", 3, "rowSpan", 1), 0, 0, 3839, 2159)
     AssertEqual(pixels["x"] + pixels["w"], 3839, "right edge aligns with monitor work area")
     AssertEqual(pixels["y"] + pixels["h"], 2159, "bottom edge aligns with monitor work area")
